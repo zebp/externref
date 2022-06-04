@@ -8,11 +8,14 @@
 /// Example:
 ///
 /// ```rust,ignore
-/// #[externref(module_name = "module", import_name = "intoRef")]
-/// extern "C" fn into_ref(value: u32) -> ExternRef;
+/// #[externref(name = "moduleName")]
+/// extern "C" {
+///     #[externref(name = "intoRef")]
+///     fn into_ref(value: u32) -> ExternRef;
 ///
-/// #[externref(module_name = "module", import_name = "fromRef")]
-/// extern "C" fn from_ref(externref: ExternRef) -> u32;
+///     #[externref(name = "fromRef")]
+///     fn from_ref(externref: ExternRef) -> u32;
+/// }
 ///
 /// const VALUE: u32 = 100;
 /// let reffed: ExternRef = into_ref(VALUE);
