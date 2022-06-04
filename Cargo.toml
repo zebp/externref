@@ -1,6 +1,2 @@
-[package]
-name = "externref"
-version = "0.0.1"
-edition = "2021"
-
-[dependencies]
+[workspace]
+members = ["crates/externref", "crates/transformer"]
