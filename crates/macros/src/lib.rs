@@ -57,7 +57,13 @@ fn process_foreign_mod(mut ffi_mod: ItemForeignMod, opts: ExternRefOptions) -> T
         .collect()
 }
 
-fn process_fn(func: ItemFn, opts: ExternRefOptions) -> TokenStream2 {
+fn process_fn(mut func: ItemFn, opts: ExternRefOptions) -> TokenStream2 {
+    if let Some(name) = &opts.name {
+        func.attrs.push(syn::parse_quote! {
+            #[link(wasm_import_module = #name)]
+        });
+    }
+
     let function_data = FunctionData::parse(&func.sig, opts).expect("cannot parse function");
     function_data
         .to_data_section_token_stream(None)
