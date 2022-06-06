@@ -1,6 +1,8 @@
 //! A crate that allows you to use `externref`s with your Wasm modules.
 #![forbid(missing_docs)]
 
+pub use externref_macros::externref;
+
 /// A struct acting as a Rust interpretation of an `externref` that will get modified after compile
 /// time. Because Rust itself doesn't have a concept of `externref` we need to transform the output
 /// wasm module after compilating to match it's import/export usages.
