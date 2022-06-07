@@ -124,3 +124,113 @@ impl<'a> From<&'a [Attribute]> for AttributesOrOptions<'a> {
         Self::Attributes(value)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+    use syn::ItemFn;
+
+    use super::FunctionData;
+
+    use crate::args::ExternRefOptions;
+
+    #[test]
+    fn parse_provided_opts() -> Result<()> {
+        let data = FunctionData::parse(
+            &(syn::parse_quote! { fn no_args_or_ret() }),
+            ExternRefOptions::default(),
+        )?;
+        assert_eq!(data.name, "no_args_or_ret");
+        assert!(!data.ret_is_extern_ref);
+        assert!(data.arg_indicies.is_empty());
+
+        let data = FunctionData::parse(
+            &syn::parse_quote! { fn with_externref_ret() -> ExternRef },
+            ExternRefOptions::default(),
+        )?;
+        assert_eq!(data.name, "with_externref_ret");
+        assert!(data.ret_is_extern_ref);
+        assert!(data.arg_indicies.is_empty());
+
+        let data = FunctionData::parse(
+            &syn::parse_quote! { fn with_args(_: ExternRef, _: ExternRef) -> ExternRef },
+            ExternRefOptions::default(),
+        )?;
+        assert_eq!(data.name, "with_args");
+        assert!(data.ret_is_extern_ref);
+        assert_eq!(data.arg_indicies, &[0, 1]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn parse_with_attrs() -> Result<()> {
+        let func: ItemFn = syn::parse_quote! {
+            #[externref(name = "no_args_or_ret")]
+            fn name() {}
+        };
+        let data = FunctionData::parse(&func.sig, func.attrs.as_ref())?;
+        assert_eq!(data.name, "no_args_or_ret");
+        assert!(!data.ret_is_extern_ref);
+        assert!(data.arg_indicies.is_empty());
+
+        let func: ItemFn = syn::parse_quote! {
+            #[externref(name = "with_externref_ret")]
+            fn name() -> ExternRef {}
+        };
+        let data = FunctionData::parse(&func.sig, func.attrs.as_ref())?;
+        assert_eq!(data.name, "with_externref_ret");
+        assert!(data.ret_is_extern_ref);
+        assert!(data.arg_indicies.is_empty());
+
+        let func: ItemFn = syn::parse_quote! {
+            #[externref(name = "with_args")]
+            fn name(_: ExternRef, _: ExternRef) -> ExternRef {}
+        };
+        let data = FunctionData::parse(&func.sig, func.attrs.as_ref())?;
+        assert_eq!(data.name, "with_args");
+        assert!(data.ret_is_extern_ref);
+        assert_eq!(data.arg_indicies, &[0, 1]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn generate_data_section() -> Result<()> {
+        let function_data = FunctionData {
+            name: "Example".into(),
+            arg_indicies: vec![0, 1],
+            ret_is_extern_ref: false,
+        };
+
+        // An export that doesn't have a module
+        let data_section_tokens = function_data
+            .to_data_section_token_stream(None)?
+            .to_string();
+        let expected_tokens = quote::quote! {
+            #[allow(incorrect_ident_case)]
+            #[allow(clippy::all)]
+            #[link_section = "__extern_ref_data_Example"]
+            static __extern_ref_data_Example: [u8; 61] =
+                *b"{\"name\":\"Example\",\"argIndicies\":[0,1],\"retIsExternRef\":false}";
+        }
+        .to_string();
+        assert_eq!(data_section_tokens, expected_tokens);
+
+        // An import that does have a module.
+        let data_section_tokens = function_data
+            .to_data_section_token_stream(Some("theModuleName"))?
+            .to_string();
+        let expected_tokens = quote::quote! {
+            #[allow(incorrect_ident_case)]
+            #[allow(clippy::all)]
+            #[link_section = "__extern_ref_data_theModuleName_Example"]
+            static __extern_ref_data_theModuleName_Example: [u8; 61] =
+                *b"{\"name\":\"Example\",\"argIndicies\":[0,1],\"retIsExternRef\":false}";
+        }
+        .to_string();
+        assert_eq!(data_section_tokens, expected_tokens);
+
+        Ok(())
+    }
+}
