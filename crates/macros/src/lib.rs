@@ -12,7 +12,38 @@ use syn::{AttributeArgs, ForeignItem, ForeignItemFn, ItemFn, ItemForeignMod};
 use crate::args::ExternRefOptions;
 use crate::func::FunctionData;
 
-/// A macro for registering WASM imports/exports that contain `externref`s.
+/// An attribute macro for declaring WASM imports/exports that contain `externref`s.
+///
+/// Because one of the goals of this project is to support non-JavaScript environments, it is
+/// currently impossible to have imports that invoke methods on classes or read object properties
+/// without having **manual** JavaScript glue code.
+///
+/// *TODO: A feature flag to enable attribute arguments for these JavaScript specific nicities?*
+///
+/// # Arguments
+///
+/// - name: Marks the name of an import module or overrides the name of an imported or exported function.
+///
+/// # Example
+/// ```rust,ignore
+/// use externref::{ExternRef, externref};
+///
+/// // Imports the `log` function in the `console` module namespace.
+/// #[externref(name = "console")]
+/// extern "C" {
+///     #[externref(name = "log")]
+///     fn console_log(message: ExternRef);
+/// }
+///
+/// // An exported function that prints the provided messages `n` times.
+/// #[externref(name = "printNTimes")]
+/// pub fn print_n_times(message: ExternRef, n: usize) {
+///     for _ in 0..n {
+///         // SAFETY: `externref` chooses to be consistent with the Rust, keeping extern functions
+///         // unsafe by default.
+///         unsafe { console_log(message) };
+///     }
+/// }
 #[proc_macro_attribute]
 pub fn externref(args: TokenStream, item: TokenStream) -> TokenStream {
     let args: AttributeArgs = syn::parse_macro_input!(args as AttributeArgs);
